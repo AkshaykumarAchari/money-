@@ -8,7 +8,9 @@
   body { font-family: system-ui; background: #f8fafc; padding: 20px; text-align: center; color: #0f172a; }
   .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 400px; margin: auto; }
   h1 { margin: 10px 0; font-size: 32px; color: #16a34a; }
-  .btn { display: block; width: 100%; padding: 16px; background: #4f46e5; color: white; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 18px; margin-top: 20px; }
+  .btn { display: block; width: 100%; padding: 16px; background: #4f46e5; color: white; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 18px; margin-top: 10px; }
+  .divider { margin: 25px 0; color: #94a3b8; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+  .qr-box { margin: 0 auto; padding: 15px; background: #f1f5f9; border-radius: 12px; display: inline-block; border: 1px dashed #cbd5e1; }
   .sim-btn { margin-top: 30px; background: #e2e8f0; color: #475569; padding: 10px; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-size: 14px;}
 </style>
 </head>
@@ -22,25 +24,35 @@
     if(data.error) return document.getElementById('app').innerHTML = 'Invoice not found or already paid.';
     
     const amount = (data.invoice.amount_paise / 100).toFixed(2);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(data.upiUri)}`;
+
     document.getElementById('app').innerHTML = `
       <p style="color:#64748b; font-weight:bold;">${data.workspace}</p>
       <h1>₹${amount}</h1>
       <p>Desk / Room: <b>${data.invoice.desk || 'N/A'}</b></p>
-      <a class="btn" href="${data.upiUri}">Pay Now via UPI</a>
+      
+      <a class="btn" href="${data.upiUri}">Pay Now via UPI App</a>
+      
+      <div class="divider">— OR —</div>
+      
+      <div class="qr-box">
+        <img src="${qrUrl}" alt="UPI QR Code" width="180" height="180" />
+        <p style="font-size: 13px; color: #475569; margin-top: 10px; font-weight: bold;">Scan with any UPI App</p>
+        <p style="font-size: 11px; color: #64748b; margin-top: 4px;">If button fails, scan this code instead.</p>
+      </div>
       
       <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 30px 0 20px;">
-      <button class="sim-btn" onclick="simulateBankWebhook()">[DEV ONLY] Simulate Bank Confirming Payment</button>
+      <button class="sim-btn" onclick="simulateBankWebhook()">[DEMO] Simulate Bank Confirming Payment</button>
     `;
   });
 
-  // This simulates what your Enterprise Bank API will do in production
   function simulateBankWebhook() {
     fetch('/api/bank-webhook-simulator', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ invoice_id: invoiceId, utr: 'SIM' + Math.floor(Math.random()*1000000000) })
+      body: JSON.stringify({ invoice_id: invoiceId })
     }).then(() => {
-      document.getElementById('app').innerHTML = '<h2 style="color:#16a34a;">✅ Payment Successful</h2><p>You can close this window.</p>';
+      document.getElementById('app').innerHTML = '<h2 style="color:#16a34a;">✅ Payment Successful</h2><p>You can safely close this window.</p>';
     });
   }
 </script>
