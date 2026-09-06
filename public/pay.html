@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure UPI Checkout</title>
+<style>
+  body { font-family: system-ui; background: #f8fafc; padding: 20px; text-align: center; color: #0f172a; }
+  .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 400px; margin: auto; }
+  h1 { margin: 10px 0; font-size: 32px; color: #16a34a; }
+  .btn { display: block; width: 100%; padding: 16px; background: #4f46e5; color: white; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 18px; margin-top: 20px; }
+  .sim-btn { margin-top: 30px; background: #e2e8f0; color: #475569; padding: 10px; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-size: 14px;}
+</style>
+</head>
+<body>
+  <div class="card" id="app">Loading secure payment...</div>
+
+<script>
+  const invoiceId = location.pathname.split('/').pop();
+  
+  fetch('/api/invoice/' + invoiceId).then(r => r.json()).then(data => {
+    if(data.error) return document.getElementById('app').innerHTML = 'Invoice not found or already paid.';
+    
+    const amount = (data.invoice.amount_paise / 100).toFixed(2);
+    document.getElementById('app').innerHTML = `
+      <p style="color:#64748b; font-weight:bold;">${data.workspace}</p>
+      <h1>₹${amount}</h1>
+      <p>Desk / Room: <b>${data.invoice.desk || 'N/A'}</b></p>
+      <a class="btn" href="${data.upiUri}">Pay Now via UPI</a>
+      
+      <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 30px 0 20px;">
+      <button class="sim-btn" onclick="simulateBankWebhook()">[DEV ONLY] Simulate Bank Confirming Payment</button>
+    `;
+  });
+
+  // This simulates what your Enterprise Bank API will do in production
+  function simulateBankWebhook() {
+    fetch('/api/bank-webhook-simulator', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ invoice_id: invoiceId, utr: 'SIM' + Math.floor(Math.random()*1000000000) })
+    }).then(() => {
+      document.getElementById('app').innerHTML = '<h2 style="color:#16a34a;">✅ Payment Successful</h2><p>You can close this window.</p>';
+    });
+  }
+</script>
+</body>
+</html>
