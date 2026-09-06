@@ -20,9 +20,20 @@
 <script>
   const invoiceId = location.pathname.split('/').pop();
   
-  fetch('/api/invoice/' + invoiceId).then(r => r.json()).then(data => {
-    if(data.error) return document.getElementById('app').innerHTML = 'Invoice not found or already paid.';
+  // 1. Function to draw the page
+  function renderPage(data) {
+    if(data.error) return document.getElementById('app').innerHTML = 'Invoice not found.';
     
+    // IF PAID: Destroy the QR code and Link!
+    if(data.invoice.status === 'paid') {
+      return document.getElementById('app').innerHTML = `
+        <h2 style="color:#16a34a; font-size: 40px; margin-bottom: 0;">✅</h2>
+        <h2 style="color:#16a34a;">Payment Successful</h2>
+        <p style="color:#64748b;">This invoice is settled. The QR code has been disabled for your security.</p>
+      `;
+    }
+
+    // IF NOT PAID: Show QR code and Link
     const amount = (data.invoice.amount_paise / 100).toFixed(2);
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(data.upiUri)}`;
 
@@ -38,22 +49,40 @@
       <div class="qr-box">
         <img src="${qrUrl}" alt="UPI QR Code" width="180" height="180" />
         <p style="font-size: 13px; color: #475569; margin-top: 10px; font-weight: bold;">Scan with any UPI App</p>
-        <p style="font-size: 11px; color: #64748b; margin-top: 4px;">If button fails, scan this code instead.</p>
       </div>
       
       <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 30px 0 20px;">
-      <button class="sim-btn" onclick="simulateBankWebhook()">[DEMO] Simulate Bank Confirming Payment</button>
+      <button class="sim-btn" onclick="simulateBankWebhook()">[DEMO] Click here to tell the server the payment arrived</button>
     `;
-  });
+  }
 
+  // 2. Fetch data when page loads
+  function loadData() {
+    fetch('/api/invoice/' + invoiceId)
+      .then(r => r.json())
+      .then(data => renderPage(data));
+  }
+  loadData();
+
+  // 3. AUTO-REFRESH: Check the server every 3 seconds to see if it was paid
+  setInterval(() => {
+    fetch('/api/invoice/' + invoiceId)
+      .then(r => r.json())
+      .then(data => {
+        if(data.invoice && data.invoice.status === 'paid') {
+          renderPage(data); // This will trigger the "IF PAID" code above and destroy the QR code
+        }
+      });
+  }, 3000);
+
+  // 4. The fake bank simulator
   function simulateBankWebhook() {
     fetch('/api/bank-webhook-simulator', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ invoice_id: invoiceId })
-    }).then(() => {
-      document.getElementById('app').innerHTML = '<h2 style="color:#16a34a;">✅ Payment Successful</h2><p>You can safely close this window.</p>';
     });
+    // We don't need to manually change the screen here anymore, because the Auto-Refresh (Step 3) will catch it automatically!
   }
 </script>
 </body>
